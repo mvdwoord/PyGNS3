@@ -1,12 +1,14 @@
 # PyGNS3
 
-is a POC / idea for a python package to interact with [GNS3](http://gns3.com).
+Python package to interact with [GNS3](http://gns3.com).
 
 It leverages the GNS3 built in API and aims to provide some additional functionality such as custom/bulk interaction with projects and nodes. I have started using GNS3 recently so walking multiple learning curves here. Any ideas / suggestions / constructive criticism is more than welcome.
 
 For now it is Python 3.6 (I think) only. It is what I use, and it is way too early to start thinking about compatibility with older versions.
 
 I am using the [API documentation](https://gns3-server.readthedocs.io/en/latest/endpoints.html#controller-api-endpoints) as a starting point, and implement the Controller endpoints only (for now). The implemented functionality is shown in an [example Jupyter Notebook](https://github.com/mvdwoord/PyGNS3/blob/master/Example.ipynb).
+
+[The package is available on PyPi](https://pypi.python.org/pypi/PyGNS3)
 
 ## GNS3Controller
 
