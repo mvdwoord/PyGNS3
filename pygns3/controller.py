@@ -37,7 +37,7 @@ class GNS3API:
         }
         system_platform = platform.system()
         if system_platform not in platform_file_locations.keys():
-            # TODO manual input option?
+            # TODO manual input option? Perhaps additional argument in staticmethod?
             raise OSError('Operating system {} not supported')
 
         # TODO verify behaviour ConfigParser vs GNS3 (i.e. does it merge files or is there precedence (presidents?)
@@ -50,9 +50,40 @@ class GNS3API:
             GNS3API.cred = HTTPBasicAuth(GNS3API.user, GNS3API.password)
             GNS3API.base = f'{GNS3API.protocol}://{GNS3API.host}:{str(GNS3API.port)}'
         else:
+            print(f'Platform: {system_platform}\n'
+                  'Looked for configuration files at these locations:\n')
             for candidate in platform_file_locations[system_platform]:
-                print(candidate)
+                print(f'  {candidate}')
+            print('\n')
             raise FileNotFoundError('No Valid Configuration File Found')
+
+    @staticmethod
+    def get_request(path):
+        """performs a GET request to `path`"""
+        url = f'{GNS3API.base}{path}'
+        # This is still not completely right. Trying to figure out how to best deal with all possible exceptions
+        # Invalid path can be actual invalid path (404) or a 404 from GNS3 for an object not found.
+        # The latter returns json with a description of the error. Codes differ (409 and others?)
+        # TODO Improve Exception handling in get_request()
+        try:
+            response = get(url, auth=GNS3API.cred)
+        except Exception as e:
+            raise Exception(f'GNS3API GET Error at URL: {url}') from e
+
+        return response
+
+    @staticmethod
+    def post_request(path, data):
+        """performs a POST request to `path`"""
+
+        url = f'{GNS3API.base}{path}'
+        # TODO Improve Exception handling in post_request()
+        try:
+            response = post(url, data=data, auth=GNS3API.cred)
+        except Exception as e:
+            raise Exception(f'GNS3API POST Error {response.status_code} at URL: {url}') from e
+
+        return response
 
 
 class GNS3Controller:
@@ -60,160 +91,137 @@ class GNS3Controller:
     Wrapper for the Controller API in GNS3. This is the central object which holds references to almost all other
     (collections of) objects in GNS3.
     """
+
     def __init__(self):
 
-        try:
-            response = get(f'{GNS3API.base}/v2/version', auth=GNS3API.cred)
-            if response.ok:
-                self.version = response.json()['version']
-        except:
-            raise
+        # Set version attribute
+        response = GNS3API.get_request('/v2/version')
+        self.version = response.json()['version']
+
         self.computes = []
-        try:
-            response = get(f'{GNS3API.base}/v2/computes', auth=GNS3API.cred)
-            if response.ok:
-                self._computes = response.json()
-                for p in self._computes:
-                    self.computes.append(GNS3Compute(p['compute_id']))
+        response = GNS3API.get_request(f'/v2/computes')
+        for p in response.json():
+            self.computes.append(GNS3Compute(p['compute_id']))
 
-        except:
-            raise
-
-        # TODO check empty projects behaviour
+        # TODO check empty projects corner case behaviour
         self.projects = []
-        try:
-            response = get(f'{GNS3API.base}/v2/projects', auth=GNS3API.cred)
-            if response.ok:
-                self._projects = response.json()
-                for p in self._projects:
-                    self.projects.append(GNS3Project(p['project_id']))
-        except:
-            raise
+        response = GNS3API.get_request(f'/v2/projects')
+        for p in response.json():
+            self.projects.append(GNS3Project(p['project_id']))
 
-    # noinspection PyMethodMayBeStatic
-    def assert_version(self, version_string: str):
+    @staticmethod
+    def assert_version(version_string: str):
         """Checks if the server is running version corresponding to 'version_string'"""
 
-        url = f'{GNS3API.base}/v2/version'
-        post_data = json.dumps({'version': version_string})
+        path = '/v2/version'
+        data = json.dumps({'version': version_string})
 
-        try:
-            response = post(url, data=post_data, auth=GNS3API.cred)
-            print("Response code: {}".format(response.status_code))
-            if response.ok:
-                return True
-            else:
-                return False
-        except:
-            raise
+        response = GNS3API.post_request(path, data)
+        return response.ok
 
     def __str__(self):
-        pretty_str = (f"\n"
-                      f"GNS3 Controller API endpoint\n"
-                      f"    Host    {GNS3API.base}\n"
-                      f"    Version {self.version}\n"
-                      f"    Running {len(self.computes)} Computes")
+        pretty_str = (f'\n'
+                      f'GNS3 Controller API endpoint\n'
+                      f'    Host    {GNS3API.base}\n'
+                      f'    Version {self.version}\n'
+                      f'    Running {len(self.computes)} Computes')
+        return pretty_str + '\n'
 
-        return pretty_str + "\n"
-
+    def __repr__(self):
+        return 'GNS3Controller()'
 
 class GNS3Project:
     def __init__(self, project_id):
         self.id = project_id
-        try:
-            response = get(f'{GNS3API.base}/v2/projects/{self.id}', auth=GNS3API.cred)
-            if response.ok:
-                self._response = response.json()
-                self.__dict__.update(Struct(**self._response).__dict__)
-
-        except:
-            raise
+        response = GNS3API.get_request(f'/v2/projects/{self.id}')
+        if response.ok:
+            self._response = response.json()
+            self.__dict__.update(Struct(**self._response).__dict__)
 
     def __str__(self):
-        return "GNS3Project settings:\n" + "\n".join([f'    {k}: {v}' for k, v in self._response.items()]) + "\n"
+        return 'GNS3Project settings:\n' + '\n'.join([f'    {k}: {v}' for k, v in self._response.items()]) + '\n'
+
+    def __repr__(self):
+        return f'GNS3Project(\'{self.id}\')'
 
 
 class GNS3Compute:
     def __init__(self, compute_id):
         self.id = compute_id
         self.connected = False
-        try:
-            response = get(f'{GNS3API.base}/v2/computes/{self.id}', auth=GNS3API.cred)
-            if response.ok:
-                self._response = response.json()
-                if self._response['connected']:
-                    self._response.update(self._response['capabilities'])
-                del self._response['capabilities']
 
-                self.__dict__.update(Struct(**self._response).__dict__)
+        response = GNS3API.get_request(f'/v2/computes/{self.id}')
+        if response.ok:
+            self._response = response.json()
+            # Pulling up the capabilities one level, makes more sense to me for now
+            if self._response['connected']:
+                self._response.update(self._response['capabilities'])
+            del self._response['capabilities']
 
-        except:
-            raise
+            self.__dict__.update(Struct(**self._response).__dict__)
 
     def images(self, emulator):
         images = []
         if self.connected:
-            try:
-                response = get(f'{GNS3API.base}/v2/computes/{self.id}/{emulator}/images', auth=GNS3API.cred)
-                if response.ok:
-                    for image in response.json():
-                        images.append(GNS3Image(image))
-            except:
-                raise
+            response = GNS3API.get_request(f'/v2/computes/{self.id}/{emulator}/images')
+            if response.ok:
+                for i in response.json():
+                    images.append(GNS3Image(i))
+
         return images
 
     def __str__(self):
-        return "GNS3Compute settings:\n" + "\n".join([f'    {k}: {v}' for k, v in self._response.items()]) + "\n"
+        return 'GNS3Compute settings:\n' + '\n'.join([f'    {k}: {v}' for k, v in self._response.items()]) + '\n'
 
+    def __repr__(self):
+        return f'GNS3Compute(\'{self.id}\')'
 
 class GNS3VM:
     """Holds information on the GNS3 VM"""
+
     # TODO figure out what happens if the GNS3 VM is not configured / other issues
     def __init__(self):
-        try:
-            response = get(f'{GNS3API.base}/v2/gns3vm', auth=GNS3API.cred)
-            if response.ok:
-                self._response = response.json()
-                self.__dict__.update(Struct(**self._response).__dict__)
-        except:
-            raise
+        response = GNS3API.get_request(f'/v2/gns3vm')
+        if response.ok:
+            self._response = response.json()
+            self.__dict__.update(Struct(**self._response).__dict__)
 
         self.engines = []
-        try:
-            response = get(f'{GNS3API.base}/v2/gns3vm/engines', auth=GNS3API.cred)
-            if response.ok:
-                self._engines = response.json()
-                for e in self._engines:
-                    self.engines.append(GNS3VMEngine(e))
-        except:
-            raise
+        response = GNS3API.get_request(f'/v2/gns3vm/engines')
+        if response.ok:
+            self._engines = response.json()
+            for e in self._engines:
+                self.engines.append(GNS3VMEngine(e))
 
     def __str__(self):
-        return "GNS3VM settings:\n" + "\n".join([f'    {k}: {v}' for k, v in self._response.items()]) + "\n"
+        return 'GNS3VM settings:\n' + '\n'.join([f'    {k}: {v}' for k, v in self._response.items()]) + '\n'
+
+    def __repr__(self):
+        return f'GNS3VM()'
 
 
 class GNS3VMEngine:
     """Holds information on the GNS3 VM"""
+
     # TODO figure out what happens if the GNS3 VM is not configured / other issues
     def __init__(self, engine_info):
 
         self.__dict__.update(Struct(**engine_info).__dict__)
 
         self.vms = []
-        try:
-            response = get(f'{GNS3API.base}/v2/gns3vm/engines/{self.engine_id}/vms', auth=GNS3API.cred)
-            if response.ok:
-                self._vms = response.json()
-                for vm in self._vms:
-                    self.vms.append(vm['vmname'])
-        except:
-            raise
+        response = GNS3API.get_request(f'/v2/gns3vm/engines/{self.engine_id}/vms')
+        if response.ok:
+            self._vms = response.json()
+            for vm in self._vms:
+                self.vms.append(vm['vmname'])
 
+    # TODO Add __str__ and __repr__ for GNS3VMEngine
 
 class GNS3Image:
     def __init__(self, image):
         self.__dict__.update(Struct(**image).__dict__)
 
+    # TODO Add __str__ and __repr__ for GNS3Image
 
 class Struct:
     """
@@ -221,6 +229,7 @@ class Struct:
     for the dynamic import of attributes so whatever the underlying API spits out, you can use
     dot notation for accessing all (nested) members.
     """
+
     def __init__(self, **entries):
         self.__dict__.update(entries)
         for k, v in self.__dict__.items():
@@ -251,5 +260,3 @@ if __name__ == '__main__':
     except FileNotFoundError:
         print("No valid configuration file found.")
         exit(1)
-
-
