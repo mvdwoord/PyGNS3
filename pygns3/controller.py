@@ -6,39 +6,7 @@ from requests import get, post
 from requests.auth import HTTPBasicAuth
 
 
-def gns3_server_conf(section='Server'):
-    """
-    The GNS3 Server (/Controller) is configured through the gns3_server.conf file.
-    GNS3 searches various locations depending on the platform. These locations are listed in the documentation
-            DOCUMENTATION   /   GNS3 SERVER CONFIGURATION FILE
-            http://docs.gns3.com/1f6uXq05vukccKdMCHhdki5MXFhV8vcwuGwiRvXMQvM0/
-    :return:
-        GNS3 Configuration as dict
-    """
-    platform_file_locations = {
-        'Darwin': [
-            f"{str(Path.home())}/.config/GNS3/gns3_server.conf",
-            "./gns3_server.conf"
-        ]
-        # TODO add Linux/Windows file locations and test.
-    }
-    system_platform = platform.system()
-    if system_platform not in platform_file_locations.keys():
-        # TODO manual input option?
-        raise OSError('Operating system {} not supported')
-
-    # TODO verify behaviour ConfigParser vs GNS3 (i.e. does it merge files or is there precedence (presidents?)
-    parser = ConfigParser()
-    found = parser.read(platform_file_locations[system_platform])
-    if found and section in parser.sections():
-        return dict(parser.items(section))
-    else:
-        for candidate in platform_file_locations[system_platform]:
-            print(candidate)
-        raise FileNotFoundError('No Valid Configuration File Found')
-
-
-class API:
+class GNS3API:
     """
     Global object which is dynamically populated with the configuration file.
     Explicitly used attributes are defined to avoid unresolved references in code inspection.
@@ -52,47 +20,57 @@ class API:
     protocol = None
     user = None
 
+    @staticmethod
+    def load_configuration(section='Server'):
+        """
+        The GNS3 Server (/Controller) is configured through the gns3_server.conf file.
+        GNS3 searches various locations depending on the platform. These locations are listed in the documentation
+                DOCUMENTATION   /   GNS3 SERVER CONFIGURATION FILE
+                http://docs.gns3.com/1f6uXq05vukccKdMCHhdki5MXFhV8vcwuGwiRvXMQvM0/
+        """
+        platform_file_locations = {
+            'Darwin': [
+                f"{str(Path.home())}/.config/GNS3/gns3_server.conf",
+                "./gns3_server.conf"
+            ]
+            # TODO add Linux/Windows file locations and test.
+        }
+        system_platform = platform.system()
+        if system_platform not in platform_file_locations.keys():
+            # TODO manual input option?
+            raise OSError('Operating system {} not supported')
 
-class Struct:
-    """
-    The Struct class is used to create a temporary nested object from json data. This allows
-    for the dynamic import of attributes so whatever the underlying API spits out, you can use
-    dot notation for accessing all (nested) members.
-    """
-    def __init__(self, **entries):
-        self.__dict__.update(entries)
-        for k, v in self.__dict__.items():
-            if isinstance(v, dict):
-                setattr(self, k, Struct(**v))
+        # TODO verify behaviour ConfigParser vs GNS3 (i.e. does it merge files or is there precedence (presidents?)
+        parser = ConfigParser()
+        found = parser.read(platform_file_locations[system_platform])
+        if found and section in parser.sections():
+            for k, v in dict(parser.items(section)).items():
+                setattr(GNS3API, k, v)
+
+            GNS3API.cred = HTTPBasicAuth(GNS3API.user, GNS3API.password)
+            GNS3API.base = f'{GNS3API.protocol}://{GNS3API.host}:{str(GNS3API.port)}'
+        else:
+            for candidate in platform_file_locations[system_platform]:
+                print(candidate)
+            raise FileNotFoundError('No Valid Configuration File Found')
 
 
 class GNS3Controller:
     """
-    Wrapper for the Controller API in GNS3
+    Wrapper for the Controller API in GNS3. This is the central object which holds references to almost all other
+    (collections of) objects in GNS3.
     """
     def __init__(self):
-        """
-        Initializes the GNS3Controller object
-        """
-        try:
-            _configuration = gns3_server_conf()
-            for k, v in _configuration.items():
-                setattr(API, k, v)
-        except FileNotFoundError:
-            print()
 
-        API.cred = HTTPBasicAuth(API.user, API.password)
-        API.base = f'{API.protocol}://{API.host}:{str(API.port)}'
         try:
-            response = get(f'{API.base}/v2/version', auth=API.cred)
+            response = get(f'{GNS3API.base}/v2/version', auth=GNS3API.cred)
             if response.ok:
-                self._version = response.json()
-                self.version = self._version['version']
+                self.version = response.json()['version']
         except:
             raise
         self.computes = []
         try:
-            response = get(f'{API.base}/v2/computes', auth=API.cred)
+            response = get(f'{GNS3API.base}/v2/computes', auth=GNS3API.cred)
             if response.ok:
                 self._computes = response.json()
                 for p in self._computes:
@@ -104,7 +82,7 @@ class GNS3Controller:
         # TODO check empty projects behaviour
         self.projects = []
         try:
-            response = get(f'{API.base}/v2/projects', auth=API.cred)
+            response = get(f'{GNS3API.base}/v2/projects', auth=GNS3API.cred)
             if response.ok:
                 self._projects = response.json()
                 for p in self._projects:
@@ -116,11 +94,11 @@ class GNS3Controller:
     def assert_version(self, version_string: str):
         """Checks if the server is running version corresponding to 'version_string'"""
 
-        url = f'{API.base}/v2/version'
+        url = f'{GNS3API.base}/v2/version'
         post_data = json.dumps({'version': version_string})
 
         try:
-            response = post(url, data=post_data, auth=API.cred)
+            response = post(url, data=post_data, auth=GNS3API.cred)
             print("Response code: {}".format(response.status_code))
             if response.ok:
                 return True
@@ -132,8 +110,8 @@ class GNS3Controller:
     def __str__(self):
         pretty_str = (f"\n"
                       f"GNS3 Controller API endpoint\n"
-                      f"    Host    {API.base}\n"
-                      f"    Version {self._version['version']}\n"
+                      f"    Host    {GNS3API.base}\n"
+                      f"    Version {self.version}\n"
                       f"    Running {len(self.computes)} Computes")
 
         return pretty_str + "\n"
@@ -143,7 +121,7 @@ class GNS3Project:
     def __init__(self, project_id):
         self.id = project_id
         try:
-            response = get(f'{API.base}/v2/projects/{self.id}', auth=API.cred)
+            response = get(f'{GNS3API.base}/v2/projects/{self.id}', auth=GNS3API.cred)
             if response.ok:
                 self._response = response.json()
                 self.__dict__.update(Struct(**self._response).__dict__)
@@ -160,7 +138,7 @@ class GNS3Compute:
         self.id = compute_id
         self.connected = False
         try:
-            response = get(f'{API.base}/v2/computes/{self.id}', auth=API.cred)
+            response = get(f'{GNS3API.base}/v2/computes/{self.id}', auth=GNS3API.cred)
             if response.ok:
                 self._response = response.json()
                 if self._response['connected']:
@@ -176,7 +154,7 @@ class GNS3Compute:
         images = []
         if self.connected:
             try:
-                response = get(f'{API.base}/v2/computes/{self.id}/{emulator}/images', auth=API.cred)
+                response = get(f'{GNS3API.base}/v2/computes/{self.id}/{emulator}/images', auth=GNS3API.cred)
                 if response.ok:
                     for image in response.json():
                         images.append(GNS3Image(image))
@@ -187,12 +165,13 @@ class GNS3Compute:
     def __str__(self):
         return "GNS3Compute settings:\n" + "\n".join([f'    {k}: {v}' for k, v in self._response.items()]) + "\n"
 
+
 class GNS3VM:
     """Holds information on the GNS3 VM"""
     # TODO figure out what happens if the GNS3 VM is not configured / other issues
     def __init__(self):
         try:
-            response = get(f'{API.base}/v2/gns3vm', auth=API.cred)
+            response = get(f'{GNS3API.base}/v2/gns3vm', auth=GNS3API.cred)
             if response.ok:
                 self._response = response.json()
                 self.__dict__.update(Struct(**self._response).__dict__)
@@ -201,7 +180,7 @@ class GNS3VM:
 
         self.engines = []
         try:
-            response = get(f'{API.base}/v2/gns3vm/engines', auth=API.cred)
+            response = get(f'{GNS3API.base}/v2/gns3vm/engines', auth=GNS3API.cred)
             if response.ok:
                 self._engines = response.json()
                 for e in self._engines:
@@ -222,7 +201,7 @@ class GNS3VMEngine:
 
         self.vms = []
         try:
-            response = get(f'{API.base}/v2/gns3vm/engines/{self.engine_id}/vms', auth=API.cred)
+            response = get(f'{GNS3API.base}/v2/gns3vm/engines/{self.engine_id}/vms', auth=GNS3API.cred)
             if response.ok:
                 self._vms = response.json()
                 for vm in self._vms:
@@ -236,8 +215,22 @@ class GNS3Image:
         self.__dict__.update(Struct(**image).__dict__)
 
 
+class Struct:
+    """
+    The Struct class is used to create a temporary nested object from json data. This allows
+    for the dynamic import of attributes so whatever the underlying API spits out, you can use
+    dot notation for accessing all (nested) members.
+    """
+    def __init__(self, **entries):
+        self.__dict__.update(entries)
+        for k, v in self.__dict__.items():
+            if isinstance(v, dict):
+                setattr(self, k, Struct(**v))
+
+
 if __name__ == '__main__':
     try:
+        GNS3API.load_configuration()
         controller = GNS3Controller()
         print(controller)
         gns3vm = GNS3VM()
