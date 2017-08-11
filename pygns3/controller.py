@@ -130,6 +130,7 @@ class GNS3Controller:
     def __repr__(self):
         return 'GNS3Controller()'
 
+
 class GNS3Project:
     def __init__(self, project_id):
         self.id = project_id
@@ -176,6 +177,7 @@ class GNS3Compute:
     def __repr__(self):
         return f'GNS3Compute(\'{self.id}\')'
 
+
 class GNS3VM:
     """Holds information on the GNS3 VM"""
 
@@ -215,13 +217,15 @@ class GNS3VMEngine:
             for vm in self._vms:
                 self.vms.append(vm['vmname'])
 
-    # TODO Add __str__ and __repr__ for GNS3VMEngine
+                # TODO Add __str__ and __repr__ for GNS3VMEngine
+
 
 class GNS3Image:
     def __init__(self, image):
         self.__dict__.update(Struct(**image).__dict__)
 
-    # TODO Add __str__ and __repr__ for GNS3Image
+        # TODO Add __str__ and __repr__ for GNS3Image
+
 
 class Struct:
     """
