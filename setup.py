@@ -9,7 +9,7 @@ def readme():
 # TODO figure out how to write a proper setup.py, and test
 setup(
     name='PyGNS3',
-    version='0.2.0dev',
+    version='0.2.1dev',
     classifiers=['Development Status :: 3 - Alpha',
                  'License :: OSI Approved :: MIT License',
                  'Programming Language :: Python :: 3.6',
