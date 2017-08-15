@@ -1,7 +1,14 @@
 """
+Interact with GNS3 through the WebAPI.
 
+The Graphical Network Simulator GNS3 exposes a WebAPI to interact with its various components. This
+module provides a wrapper around said API and aims for a more pythonic way of interaction. Objects
+are created with proper attributes to allow for dot notation.
+
+While the priority is to attain complete coverage of the underlying GNS3 API, addtional
+functionality will be added such as easier interaction with nodes throygh telnet/SSH. Possibly
+even some cookie cutter style setup for Projects. Time will tell.
 """
-# TODO Create nice module docstring
 import json
 import platform
 from configparser import ConfigParser
@@ -28,23 +35,24 @@ class GNS3API:
     def load_configuration(section='Server'):
         """
         The GNS3 Server (/Controller) is configured through the gns3_server.conf file.
-        GNS3 searches various locations depending on the platform. These locations are listed in the documentation
+        GNS3 searches various locations depending on the platform. These locations are listed in the
+        documentation.
                 DOCUMENTATION   /   GNS3 SERVER CONFIGURATION FILE
                 http://docs.gns3.com/1f6uXq05vukccKdMCHhdki5MXFhV8vcwuGwiRvXMQvM0/
         """
         platform_file_locations = {
-            'Darwin': [
-                f"{str(Path.home())}/.config/GNS3/gns3_server.conf",
-                "./gns3_server.conf"
-            ]
             # TODO add Linux/Windows file locations and test.
+            'Darwin': [
+                f'{str(Path.home())}/.config/GNS3/gns3_server.conf',
+                './gns3_server.conf',
+            ]
         }
         system_platform = platform.system()
         if system_platform not in platform_file_locations.keys():
             # TODO manual input option? Perhaps additional argument in staticmethod?
             raise OSError('Operating system {} not supported')
 
-        # TODO verify behaviour ConfigParser vs GNS3 (i.e. does it merge files or is there precedence (presidents?)
+        # TODO verify behaviour ConfigParser vs GNS3 (i.e. does it merge or is there precedence?)
         parser = ConfigParser()
         found = parser.read(platform_file_locations[system_platform])
         if found and section in parser.sections():
@@ -65,7 +73,8 @@ class GNS3API:
     def get_request(path):
         """performs a GET request to `path`"""
         url = f'{GNS3API.base}{path}'
-        # This is still not completely right. Trying to figure out how to best deal with all possible exceptions
+        # This is still not completely right. Trying to figure out how to best deal with all
+        # possible exceptions
         # Invalid path can be actual invalid path (404) or a 404 from GNS3 for an object not found.
         # The latter returns json with a description of the error. Codes differ (409 and others?)
         # TODO Improve Exception handling in get_request()
@@ -91,6 +100,8 @@ class GNS3API:
 
 
 class GNS3Compute:
+    """Compute endpoint which handles the actual simulation."""
+
     def __init__(self, compute_id):
         self.id = compute_id
         self.connected = False
@@ -114,6 +125,7 @@ class GNS3Compute:
         return f'GNS3Compute(\'{self.id}\')'
 
     def images(self, emulator):
+        """Return a list of available image files for the given emaulator."""
         images = []
         if self.connected:
             response = GNS3API.get_request(f'/v2/computes/{self.id}/{emulator}/images')
@@ -126,8 +138,8 @@ class GNS3Compute:
 
 class GNS3Controller:
     """
-    Wrapper for the Controller API in GNS3. This is the central object which holds references to almost all other
-    (collections of) objects in GNS3.
+    Wrapper for the Controller API in GNS3. This is the central object which holds references to
+    almost all other (collections of) objects in GNS3.
     """
 
     def __init__(self):
@@ -171,7 +183,7 @@ class GNS3Controller:
 
     @staticmethod
     def debug():
-        """Dump debug information to disk (debug directory in config directory). Works only for local server"""
+        """Dump debug information to disk (debug directory in config directory)."""
         response = GNS3API.post_request('/v2/debug', {})
         if response.status_code == 201:
             print('Debug information written to configuration directory')
@@ -202,7 +214,8 @@ class GNS3Drawing:
 
     def __str__(self):
         max_key_width = max(map(len, self._drawing.keys()))
-        settings = '\n'.join([f'    {k:{max_key_width + 1}} {v}' for k, v in self._drawing.items()]) + '\n'
+        setting_items = [f'    {k:{max_key_width + 1}} {v}' for k, v in self._drawing.items()]
+        settings = '\n'.join(setting_items) + '\n'
         return 'GNS3Drawing:\n' + settings + ''
 
     @classmethod
@@ -217,8 +230,25 @@ class GNS3Drawing:
         pass
 
 
+class GNS3Image:
+    """An image available on a Compute node for a given emulator"""
+
+    # TODO would also be easier if you could request an image by id. Check with devs.
+    def __init__(self, image):
+        self.image = image
+        self.__dict__.update(Struct(**image).__dict__)
+
+    def __str__(self):
+        max_key_width = max(map(len, self.image.keys()))
+        return 'GNS3Image settings:\n' + '\n'.join(
+            [f'    {k:{max_key_width}} {v}' for k, v in self.image.items()]) + '\n'
+
+    def __repr__(self):
+        return f'GNS3Image({self.image})'
+
+
 class GNS3Link:
-    """A link instance"""
+    """A link between two GNS3Node objects"""
 
     def __init__(self, link):
         self._link = link
@@ -226,14 +256,17 @@ class GNS3Link:
         self.link_id = link['link_id']
         self._nodes = link['nodes']
         # Instantiate GNS3Node objects to look up the pretty name of the ports
+        # TODO review this mess (too-many-instance-attributes)
         self.from_node = GNS3Node.from_id(self.project_id, self._nodes[0]['node_id'])
         self.to_node = GNS3Node.from_id(self.project_id, self._nodes[1]['node_id'])
         self.from_adapter_number = self._nodes[0]['adapter_number']
         self.to_adapter_number = self._nodes[1]['adapter_number']
         self.from_port_number = self._nodes[0]['port_number']
         self.to_port_number = self._nodes[1]['port_number']
-        self.from_port_name = self.from_node.port_name(self.from_adapter_number, self.from_port_number)
-        self.to_port_name = self.to_node.port_name(self.to_adapter_number, self.to_port_number)
+        self.from_port_name = self.from_node.port_name(self.from_adapter_number,
+                                                       self.from_port_number)
+        self.to_port_name = self.to_node.port_name(self.to_adapter_number,
+                                                   self.to_port_number)
         self.__dict__.update(Struct(**link).__dict__)
 
     def __repr__(self):
@@ -242,7 +275,8 @@ class GNS3Link:
     def __str__(self):
         max_key_width = max(map(len, self._link.keys()))
         link_settings = {k: v for (k, v) in self._link.items() if k != 'nodes'}
-        settings = '\n'.join([f'    {k:{max_key_width + 1}} {v}' for k, v in link_settings.items()]) + '\n'
+        setting_items = [f'    {k:{max_key_width + 1}} {v}' for k, v in link_settings.items()]
+        settings = '\n'.join(setting_items) + '\n'
         from_port = f'{self.from_node.name} ({self.from_port_name})'
         to_port = f'{self.to_node.name} ({self.to_port_name})'
         return (f'GNS3Link settings:\n{settings}'
@@ -265,6 +299,7 @@ class GNS3Node:
     """Represents a node in a GNS3Project"""
 
     def __init__(self, node):
+        self.name = None
         self._node = node
         ports = node['ports']
         self.project_id = node['project_id']
@@ -286,10 +321,12 @@ class GNS3Node:
 
     @classmethod
     def from_id(cls, project_id, node_id):
+        """Return a GNS3Node object from project- and node id"""
         response = GNS3API.get_request(f'/v2/projects/{project_id}/nodes/{node_id}').json()
         return cls(response)
 
     def port_name(self, adapter_number, port_number):
+        """Return a port name (e.g. f0/0) given its adapter number/port number"""
         for port in self.ports:
             if (port.adapter_number == adapter_number) & (port.port_number == port_number):
                 return port.short_name
@@ -298,6 +335,8 @@ class GNS3Node:
 
 
 class GNS3NodePort:
+    """A port on a GNS3Node."""
+
     def __init__(self, node_port):
         self.adapter_number = None
         self.port_number = None
@@ -310,11 +349,14 @@ class GNS3NodePort:
 
     def __str__(self):
         max_key_width = max(map(len, self._node_port.keys()))
-        settings = '\n'.join([f'    {k:{max_key_width + 1}} {v}' for k, v in self._node_port.items()]) + '\n'
+        setting_items = [f'    {k:{max_key_width + 1}} {v}' for k, v in self._node_port.items()]
+        settings = '\n'.join(setting_items) + '\n'
         return 'GNSNodePort:\n' + settings
 
 
 class GNS3NodeProperties:
+    """Property section of a GNS3Node settings"""
+
     def __init__(self, node_properties):
         self._node_properties = node_properties
         self.__dict__.update(Struct(**node_properties).__dict__)
@@ -324,11 +366,14 @@ class GNS3NodeProperties:
 
     def __str__(self):
         max_key_width = max(map(len, self._node_properties.keys()))
-        settings = '\n'.join([f'    {k:{max_key_width + 1}} {v}' for k, v in self._node_properties.items()]) + '\n'
+        items = [f'    {k:{max_key_width + 1}} {v}' for k, v in self._node_properties.items()]
+        settings = '\n'.join(items) + '\n'
         return 'GNSNodeProperties:\n' + settings + ''
 
 
 class GNS3Project:
+    """A project is a collection of nodes, links, drawings and snapshots."""
+
     def __init__(self, project_id):
         self.project_id = project_id
         self._load_settings()
@@ -346,7 +391,8 @@ class GNS3Project:
 
     def __str__(self):
         max_key_width = max(map(len, self._response.keys()))
-        settings = '\n'.join([f'    {k:{max_key_width}} {v}' for k, v in self._response.items()]) + '\n'
+        setting_items = [f'    {k:{max_key_width}} {v}' for k, v in self._response.items()]
+        settings = '\n'.join(setting_items) + '\n'
         return ('GNS3Project settings:\n' + settings + ''
                                                        f'    drawings     {len(self.drawings)}\n'
                                                        f'    links        {len(self.links)}\n'
@@ -379,10 +425,11 @@ class GNS3Project:
         GNS3API.post_request(f'/v2/projects/{self.project_id}/close', data={})
         self._load_settings()
 
-    def load(self, path):
+    @staticmethod
+    def load(path):
         """loads a project (local only)"""
         # TODO this needs to be more robust / x-platform with libpath or something
-        # TODO should this be a classmethod? probably yes. Investigate behaviour and check for its dual (unload)
+        # TODO Investigate what this does precisely and check for  dual (unload)
         data = {"path": path}
         response = GNS3API.post_request(f'/v2/projects/load', data=data)
         if not response.ok:
@@ -394,16 +441,19 @@ class GNS3Project:
         self._load_settings()
 
     def start_all_nodes(self):
+        """Start all nodes in a project"""
         GNS3API.post_request(f'/v2/projects/{self.project_id}/nodes/start', data={})
         self._load_settings()
         print('All nodes have been started.')
 
     def stop_all_nodes(self):
+        """Stop all nodes in a project"""
         GNS3API.post_request(f'/v2/projects/{self.project_id}/nodes/stop', data={})
         self._load_settings()
         print('All nodes have been stopped.')
 
     def suspend_all_nodes(self):
+        """Suspend all nodes in a project"""
         GNS3API.post_request(f'/v2/projects/{self.project_id}/nodes/suspend', data={})
         self._load_settings()
         print('All nodes have been suspended.')
@@ -425,8 +475,9 @@ class GNS3Project:
         pass
 
     def get_file(self, file):
-        """Get a file from a project. Beware you have warranty to be able to access only to file global to the
-        project (for example README.txt) """
+        """Get a file from a project. Beware you have warranty to be able to access only to file
+        global to the project (for example README.txt)
+        """
         # TODO Implement get_file function
         pass
 
@@ -459,7 +510,8 @@ class GNS3Snapshot:
 
     def __str__(self):
         max_key_width = max(map(len, self._snapshot.keys()))
-        settings = '\n'.join([f'    {k:{max_key_width + 1}} {v}' for k, v in self._snapshot.items()]) + '\n'
+        items = [f'    {k:{max_key_width + 1}} {v}' for k, v in self._snapshot.items()]
+        settings = '\n'.join(items) + '\n'
         return 'GNS3Snapshot settings:\n' + settings + ''
 
     def __repr__(self):
@@ -499,7 +551,7 @@ class GNS3VMEngine:
     # e.g. /v2/gns3vm/engines/{engine_id}  Like most other objects.
     # TODO figure out what happens if the GNS3 VM is not configured / other issues
     def __init__(self, engine_info):
-
+        self.engine_id = None
         self._engine_info = engine_info
         self.__dict__.update(Struct(**engine_info).__dict__)
 
@@ -523,23 +575,6 @@ class GNS3VMEngine:
         return f'GNS3VMEngine({original_info})'
 
 
-class GNS3Image:
-    """An image available on a Compute node for a given emulator"""
-
-    # TODO would also be easier and more consistent if you could request an image by id. Check with devs.
-    def __init__(self, image):
-        self.image = image
-        self.__dict__.update(Struct(**image).__dict__)
-
-    def __str__(self):
-        max_key_width = max(map(len, self.image.keys()))
-        return 'GNS3Image settings:\n' + '\n'.join(
-            [f'    {k:{max_key_width}} {v}' for k, v in self.image.items()]) + '\n'
-
-    def __repr__(self):
-        return f'GNS3Image({self.image})'
-
-
 class Struct:
     """
     The Struct class is used to create a temporary nested object from json data. This allows
@@ -555,10 +590,13 @@ class Struct:
 
 
 def main():
+    """Main entry point. Show some sane defaults."""
     try:
         GNS3API.load_configuration()
         controller = GNS3Controller()
         print(controller)
+        my_project = GNS3Project.from_name('Basic 4 Routers')
+        print(my_project)
     except FileNotFoundError as e:
         print(str(e))
 

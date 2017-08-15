@@ -1,0 +1,41 @@
+diff --git a/pylintrc_default b/.pylintrc
+index 9b9a88d..3290450 100644
+--- a/pylintrc_default
++++ b/.pylintrc
+@@ -126,7 +126,9 @@ disable=print-statement,
+         next-method-defined,
+         dict-items-not-iterating,
+         dict-keys-not-iterating,
+-        dict-values-not-iterating
++        dict-values-not-iterating,
++        too-few-public-methods,
++        too-many-instance-attributes
+ 
+ # Enable the message, report, category or checker with the given id(s). You can
+ # either give multiple identifier separated by comma (,) or put this option
+@@ -222,7 +224,13 @@ good-names=i,
+            k,
+            ex,
+            Run,
+-           _
++           _,
++           v,
++           e,
++           p,
++           c,
++           id,
++           vm
+ 
+ # Include a hint for the correct naming format with invalid-name
+ include-naming-hint=no
+@@ -312,8 +320,8 @@ logging-modules=logging
+ 
+ # List of note tags to take in consideration, separated by a comma.
+ notes=FIXME,
+-      XXX,
+-      TODO
++      XXX
++      
+ 
+ 
+ [SIMILARITIES]
