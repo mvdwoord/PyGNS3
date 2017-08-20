@@ -37,8 +37,9 @@ class GNS3API:
         The GNS3 Server (/Controller) is configured through the gns3_server.conf file.
         GNS3 searches various locations depending on the platform. These locations are listed in the
         documentation.
-                DOCUMENTATION   /   GNS3 SERVER CONFIGURATION FILE
-                http://docs.gns3.com/1f6uXq05vukccKdMCHhdki5MXFhV8vcwuGwiRvXMQvM0/
+
+        DOCUMENTATION   /   GNS3 SERVER CONFIGURATION FILE
+        http://docs.gns3.com/1f6uXq05vukccKdMCHhdki5MXFhV8vcwuGwiRvXMQvM0/
         """
         platform_file_locations = {
             # TODO add Linux/Windows file locations and test.
@@ -100,7 +101,9 @@ class GNS3API:
 
 
 class GNS3Compute:
-    """Compute endpoint which handles the actual simulation."""
+    """
+    Compute endpoint which handles the actual simulation.
+    """
 
     def __init__(self, compute_id):
         self.id = compute_id
@@ -603,3 +606,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+# TODO move /v2 part to base, remove from paths
