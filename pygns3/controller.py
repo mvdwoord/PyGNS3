@@ -13,7 +13,7 @@ import json
 import platform
 from configparser import ConfigParser
 from pathlib import Path
-from requests import get, post
+from requests import delete, get, post
 from requests.auth import HTTPBasicAuth
 
 
@@ -61,7 +61,7 @@ class GNS3API:
                 setattr(GNS3API, k, v)
 
             GNS3API.cred = HTTPBasicAuth(GNS3API.user, GNS3API.password)
-            GNS3API.base = f'{GNS3API.protocol}://{GNS3API.host}:{str(GNS3API.port)}'
+            GNS3API.base = f'{GNS3API.protocol}://{GNS3API.host}:{str(GNS3API.port)}/v2'
         else:
             print(f'Platform: {system_platform}\n'
                   'Looked for configuration files at these locations:\n')
@@ -69,6 +69,17 @@ class GNS3API:
                 print(f'  {candidate}')
             print('\n')
             raise FileNotFoundError('No Valid Configuration File Found')
+
+    @staticmethod
+    def delete_request(path):
+        """performs a DELETE request to `path`"""
+        url = f'{GNS3API.base}{path}'
+        try:
+            response = delete(url, auth=GNS3API.cred)
+        except Exception as e:
+            raise Exception(f'GNS3API DELETE Error at URL: {url}') from e
+
+        return response
 
     @staticmethod
     def get_request(path):
@@ -109,7 +120,7 @@ class GNS3Compute:
         self.id = compute_id
         self.connected = False
 
-        response = GNS3API.get_request(f'/v2/computes/{self.id}')
+        response = GNS3API.get_request(f'/computes/{self.id}')
         if response.ok:
             self._response = response.json()
             # Pulling up the capabilities one level, makes more sense to me for now
@@ -131,7 +142,7 @@ class GNS3Compute:
         """Return a list of available image files for the given emaulator."""
         images = []
         if self.connected:
-            response = GNS3API.get_request(f'/v2/computes/{self.id}/{emulator}/images')
+            response = GNS3API.get_request(f'/computes/{self.id}/{emulator}/images')
             if response.ok:
                 for i in response.json():
                     images.append(GNS3Image(i))
@@ -148,17 +159,17 @@ class GNS3Controller:
     def __init__(self):
 
         # Set version attribute
-        response = GNS3API.get_request('/v2/version')
+        response = GNS3API.get_request('/version')
         self.version = response.json()['version']
 
         self.computes = []
-        response = GNS3API.get_request(f'/v2/computes')
+        response = GNS3API.get_request(f'/computes')
         for p in response.json():
             self.computes.append(GNS3Compute(p['compute_id']))
 
         # TODO check empty projects corner case behaviour
         self.projects = []
-        response = GNS3API.get_request(f'/v2/projects')
+        response = GNS3API.get_request(f'/projects')
         for p in response.json():
             self.projects.append(GNS3Project(p['project_id']))
 
@@ -178,7 +189,7 @@ class GNS3Controller:
     def assert_version(version_string: str):
         """Checks if the server is running version corresponding to 'version_string'"""
 
-        path = '/v2/version'
+        path = '/version'
         data = json.dumps({'version': version_string})
 
         response = GNS3API.post_request(path, data)
@@ -187,7 +198,7 @@ class GNS3Controller:
     @staticmethod
     def debug():
         """Dump debug information to disk (debug directory in config directory)."""
-        response = GNS3API.post_request('/v2/debug', {})
+        response = GNS3API.post_request('/debug', {})
         if response.status_code == 201:
             print('Debug information written to configuration directory')
         else:
@@ -196,7 +207,7 @@ class GNS3Controller:
     @staticmethod
     def shutdown():
         """Shutdown the local server"""
-        response = GNS3API.post_request('/v2/shutdown', {})
+        response = GNS3API.post_request('/shutdown', {})
         if response.status_code == 201:
             print('Controller accepted the shutdown command')
         else:
@@ -325,7 +336,7 @@ class GNS3Node:
     @classmethod
     def from_id(cls, project_id, node_id):
         """Return a GNS3Node object from project- and node id"""
-        response = GNS3API.get_request(f'/v2/projects/{project_id}/nodes/{node_id}').json()
+        response = GNS3API.get_request(f'/projects/{project_id}/nodes/{node_id}').json()
         return cls(response)
 
     def port_name(self, adapter_number, port_number):
@@ -380,13 +391,13 @@ class GNS3Project:
     def __init__(self, project_id):
         self.project_id = project_id
         self._load_settings()
-        self._drawings = GNS3API.get_request(f'/v2/projects/{self.project_id}/drawings').json()
+        self._drawings = GNS3API.get_request(f'/projects/{self.project_id}/drawings').json()
         self.drawings = [GNS3Drawing(d) for d in self._drawings]
-        self._links = GNS3API.get_request(f'/v2/projects/{self.project_id}/links').json()
+        self._links = GNS3API.get_request(f'/projects/{self.project_id}/links').json()
         self.links = [GNS3Link(l) for l in self._links]
-        self._nodes = GNS3API.get_request(f'/v2/projects/{self.project_id}/nodes').json()
+        self._nodes = GNS3API.get_request(f'/projects/{self.project_id}/nodes').json()
         self.nodes = [GNS3Node(n) for n in self._nodes]
-        self._snapshots = GNS3API.get_request(f'/v2/projects/{self.project_id}/snapshots').json()
+        self._snapshots = GNS3API.get_request(f'/projects/{self.project_id}/snapshots').json()
         self.snapshots = [GNS3Snapshot(s) for s in self._snapshots]
 
     def __repr__(self):
@@ -402,8 +413,33 @@ class GNS3Project:
                                                        f'    nodes        {len(self.nodes)}\n'
                                                        f'    snapshots    {len(self.snapshots)}\n')
 
+    @classmethod
+    def create(cls, name, **kwargs):
+        """Create a new project.
+
+        Requires a name, additional properties may be given through **kwargs
+        Returns a GNS3Project instance"""
+        data = {'name': name}
+        data.update(kwargs)
+        response = GNS3API.post_request('/projects', json.dumps(data))
+
+        if response.status_code == 201:
+            project_id = json.loads(response.content)['project_id']
+            return GNS3Project(project_id)
+        else:
+            msg = json.loads(response.content)['message']
+            raise ValueError(msg)
+
+    def delete(self):
+        """Delete the project from the compute"""
+        response = GNS3API.delete_request(f'/projects/{self.project_id}')
+        if response.status_code == 404:
+            msg = json.loads(response.content)['message']
+            raise ValueError(msg)
+
+
     def _load_settings(self):
-        response = GNS3API.get_request(f'/v2/projects/{self.project_id}')
+        response = GNS3API.get_request(f'/projects/{self.project_id}')
         if response.ok:
             self._response = response.json()
             self.__dict__.update(Struct(**self._response).__dict__)
@@ -425,7 +461,7 @@ class GNS3Project:
 
     def close(self):
         """closes a project"""
-        GNS3API.post_request(f'/v2/projects/{self.project_id}/close', data={})
+        GNS3API.post_request(f'/projects/{self.project_id}/close', data={})
         self._load_settings()
 
     @staticmethod
@@ -434,34 +470,33 @@ class GNS3Project:
         # TODO this needs to be more robust / x-platform with libpath or something
         # TODO Investigate what this does precisely and check for  dual (unload)
         data = {"path": path}
-        response = GNS3API.post_request(f'/v2/projects/load', data=data)
+        response = GNS3API.post_request(f'/projects/load', data=data)
         if not response.ok:
             raise Exception('Unable to open project')
 
     def open(self):
         """opens a project"""
-        GNS3API.post_request(f'/v2/projects/{self.project_id}/open', data={})
+        GNS3API.post_request(f'/projects/{self.project_id}/open', data={})
         self._load_settings()
 
     def start_all_nodes(self):
         """Start all nodes in a project"""
-        GNS3API.post_request(f'/v2/projects/{self.project_id}/nodes/start', data={})
+        GNS3API.post_request(f'/projects/{self.project_id}/nodes/start', data={})
         self._load_settings()
         print('All nodes have been started.')
 
     def stop_all_nodes(self):
         """Stop all nodes in a project"""
-        GNS3API.post_request(f'/v2/projects/{self.project_id}/nodes/stop', data={})
+        GNS3API.post_request(f'/projects/{self.project_id}/nodes/stop', data={})
         self._load_settings()
         print('All nodes have been stopped.')
 
     def suspend_all_nodes(self):
         """Suspend all nodes in a project"""
-        GNS3API.post_request(f'/v2/projects/{self.project_id}/nodes/suspend', data={})
+        GNS3API.post_request(f'/projects/{self.project_id}/nodes/suspend', data={})
         self._load_settings()
         print('All nodes have been suspended.')
 
-    # TODO Decide on naming functions which mimic keywords
     def import_project(self):
         """import a project"""
         # TODO Implement import_project function
@@ -492,7 +527,7 @@ class GNS3Project:
     @classmethod
     def from_name(cls, name):
         """Returns a GNS3Project with `name`"""
-        response = GNS3API.get_request('/v2/projects')
+        response = GNS3API.get_request('/projects')
         all_projects = response.json()
         for p in all_projects:
             if p['name'] == name:
@@ -526,13 +561,13 @@ class GNS3VM:
 
     # TODO figure out what happens if the GNS3 VM is not configured / other issues
     def __init__(self):
-        response = GNS3API.get_request(f'/v2/gns3vm')
+        response = GNS3API.get_request(f'/gns3vm')
         if response.ok:
             self._response = response.json()
             self.__dict__.update(Struct(**self._response).__dict__)
 
         self.engines = []
-        response = GNS3API.get_request(f'/v2/gns3vm/engines')
+        response = GNS3API.get_request(f'/gns3vm/engines')
         if response.ok:
             self._engines = response.json()
             for e in self._engines:
@@ -551,7 +586,7 @@ class GNS3VMEngine:
     """Holds information on the GNS3 VM Engine"""
 
     # TODO Ask why GNS3VMEngine is not in API with an id.
-    # e.g. /v2/gns3vm/engines/{engine_id}  Like most other objects.
+    # e.g. /gns3vm/engines/{engine_id}  Like most other objects.
     # TODO figure out what happens if the GNS3 VM is not configured / other issues
     def __init__(self, engine_info):
         self.engine_id = None
@@ -559,7 +594,7 @@ class GNS3VMEngine:
         self.__dict__.update(Struct(**engine_info).__dict__)
 
         self.vms = []
-        response = GNS3API.get_request(f'/v2/gns3vm/engines/{self.engine_id}/vms')
+        response = GNS3API.get_request(f'/gns3vm/engines/{self.engine_id}/vms')
         if response.ok:
             self._vms = response.json()
             for vm in self._vms:
@@ -596,10 +631,16 @@ def main():
     """Main entry point. Show some sane defaults."""
     try:
         GNS3API.load_configuration()
-        controller = GNS3Controller()
-        print(controller)
-        my_project = GNS3Project.from_name('Basic 4 Routers')
-        print(my_project)
+        try:
+            project = GNS3Project.create('henktest', scene_height=500, scene_width=600)
+            print(f'created project {project.name} with id: {project.project_id}')
+        except ValueError as e:
+            print(f'Failed to create project ({e})')
+        print(project)
+        print('Now trynig to delete')
+        project.delete()
+        print('Now trynig to delete again')
+        project.delete()
     except FileNotFoundError as e:
         print(str(e))
 
@@ -607,4 +648,3 @@ def main():
 if __name__ == '__main__':
     main()
 
-# TODO move /v2 part to base, remove from paths
