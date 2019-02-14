@@ -16,6 +16,7 @@ from pathlib import Path
 from requests import delete, get, post
 from requests.auth import HTTPBasicAuth
 import os
+import sys
 
 
 class GNS3API:
@@ -42,8 +43,6 @@ class GNS3API:
         DOCUMENTATION   /   GNS3 SERVER CONFIGURATION FILE
         http://docs.gns3.com/1f6uXq05vukccKdMCHhdki5MXFhV8vcwuGwiRvXMQvM0/
         """
-
-        found_config_file = False
         platform_file_locations = {
             # Works on windows now.
             'Windows': [
@@ -64,7 +63,7 @@ class GNS3API:
         )
         config_file_location = None
         system_platform = platform.system()
-        if system_platform in platform_file_locations.keys():
+        if system_platform in platform_file_locations.keys() and '--custom-config' not in sys.argv:
             config_file_location = platform_file_locations[system_platform]
 
         while not os.path.isfile(config_file_location):
@@ -73,9 +72,10 @@ class GNS3API:
             conf_file_prompt = f"There is no default config file location for your operating " \
                 f"system ({system_platform}).\nPlease enter the configuration file location manually.\n" \
                 f"Example: /home/<YourUserName>/.config/GNS3/GNS3.conf\nIf you see this repeatedly you're entering" \
-                f"an invalid Path.\n"
+                f"an invalid Path.\n" if '--custom-config' not in sys.argv else f"Please enter the config file" \
+                f"location.\n"
             config_file_location = str(input(conf_file_prompt))
-            
+
         # TODO verify behaviour ConfigParser vs GNS3 (i.e. does it merge or is there precedence?)
         parser = ConfigParser()
         try:
