@@ -48,23 +48,21 @@ class GNS3API:
             'Windows': [
                 os.path.join(os.getenv('APPDATA'), 'GNS3', 'gns3_server.ini')
             ],
+            'Linux': [
+                os.path.join(str(Path.home()), '.config', 'GNS3', 'gns3_server.conf', ),
+            ],
+            'Darwin': [
+                os.path.join(str(Path.home()), '.config', 'GNS3', 'gns3_server.conf', ),
+            ]
         }
-        platform_file_locations.update(
-            dict.fromkeys(
-                [
-                    # TODO: Test configuration on Linux
-                    'Linux',
-                    'Darwin',
-                ],
-                [
-                    os.path.join(str(Path.home()), '.config', 'GNS3', 'gns3_server.conf', ),
-                ],
-            )
-        )
+
         config_file_location = None
         system_platform = platform.system()
         if system_platform in platform_file_locations.keys() and '--custom-config' not in sys.argv:
-            config_file_location = platform_file_locations[system_platform]
+            for potential_location in platform_file_locations[system_platform]:
+                if os.path.isfile(potential_location):
+                    config_file_location = potential_location
+                    break
 
         while not os.path.isfile(config_file_location):
             # do something with the platform
