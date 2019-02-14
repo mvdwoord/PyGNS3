@@ -15,6 +15,7 @@ from configparser import ConfigParser
 from pathlib import Path
 from requests import delete, get, post
 from requests.auth import HTTPBasicAuth
+import os
 
 
 class GNS3API:
@@ -42,12 +43,25 @@ class GNS3API:
         http://docs.gns3.com/1f6uXq05vukccKdMCHhdki5MXFhV8vcwuGwiRvXMQvM0/
         """
         platform_file_locations = {
-            # TODO add Linux/Windows file locations and test.
-            'Darwin': [
-                f'{str(Path.home())}/.config/GNS3/gns3_server.conf',
-                './gns3_server.conf',
-            ]
+            # Works on windows now.
+            'Windows': [
+                os.path.join(os.getenv('APPDATA'), 'GNS3', 'gns3_server.ini')
+            ],
         }
+        platform_file_locations.update(
+            dict.fromkeys(
+                [
+                    # TODO: Test configuration on Linux
+                    'Linux',
+                    'Darwin',
+                ],
+                [
+                    os.path.join(str(Path.home()), '.config', 'GNS3', 'gns3_server.conf', ),
+                ],
+            )
+        )
+
+
         system_platform = platform.system()
         if system_platform not in platform_file_locations.keys():
             # TODO manual input option? Perhaps additional argument in staticmethod?
