@@ -42,6 +42,8 @@ class GNS3API:
         DOCUMENTATION   /   GNS3 SERVER CONFIGURATION FILE
         http://docs.gns3.com/1f6uXq05vukccKdMCHhdki5MXFhV8vcwuGwiRvXMQvM0/
         """
+
+        found_config_file = False
         platform_file_locations = {
             # Works on windows now.
             'Windows': [
@@ -60,16 +62,26 @@ class GNS3API:
                 ],
             )
         )
-
-
+        config_file_location = None
         system_platform = platform.system()
-        if system_platform not in platform_file_locations.keys():
-            # TODO manual input option? Perhaps additional argument in staticmethod?
-            raise OSError('Operating system {} not supported')
+        if system_platform in platform_file_locations.keys():
+            config_file_location = platform_file_locations[system_platform]
 
+        while not os.path.isfile(config_file_location):
+            # do something with the platform
+            # TODO manual input option? Perhaps additional argument in staticmethod?
+            conf_file_prompt = f"There is no default config file location for your operating " \
+                f"system ({system_platform}).\nPlease enter the configuration file location manually.\n" \
+                f"Example: /home/<YourUserName>/.config/GNS3/GNS3.conf\nIf you see this repeatedly you're entering" \
+                f"an invalid Path.\n"
+            config_file_location = str(input(conf_file_prompt))
+            
         # TODO verify behaviour ConfigParser vs GNS3 (i.e. does it merge or is there precedence?)
         parser = ConfigParser()
-        found = parser.read(platform_file_locations[system_platform])
+        try:
+            found = parser.read(config_file_location)
+        except FileNotFoundError:
+            pass
         if found and section in parser.sections():
             for k, v in dict(parser.items(section)).items():
                 setattr(GNS3API, k, v)
@@ -422,10 +434,10 @@ class GNS3Project:
         setting_items = [f'    {k:{max_key_width}} {v}' for k, v in self._response.items()]
         settings = '\n'.join(setting_items) + '\n'
         return ('GNS3Project settings:\n' + settings + ''
-                                                       f'    drawings     {len(self.drawings)}\n'
-                                                       f'    links        {len(self.links)}\n'
-                                                       f'    nodes        {len(self.nodes)}\n'
-                                                       f'    snapshots    {len(self.snapshots)}\n')
+        f'    drawings     {len(self.drawings)}\n'
+        f'    links        {len(self.links)}\n'
+        f'    nodes        {len(self.nodes)}\n'
+        f'    snapshots    {len(self.snapshots)}\n')
 
     @classmethod
     def create(cls, name, **kwargs):
@@ -450,7 +462,6 @@ class GNS3Project:
         if response.status_code == 404:
             msg = json.loads(response.content)['message']
             raise ValueError(msg)
-
 
     def _load_settings(self):
         response = GNS3API.get_request(f'/projects/{self.project_id}')
@@ -661,4 +672,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
