@@ -32,6 +32,7 @@ class GNS3API:
     projects_path = None
     protocol = None
     user = None
+    config_file_found = False
 
     @staticmethod
     def load_configuration(section='Server'):
@@ -67,7 +68,7 @@ class GNS3API:
         while not os.path.isfile(config_file_location):
             # do something with the platform
             # TODO manual input option? Perhaps additional argument in staticmethod?
-            conf_file_prompt = f"There is no default config file location for your operating " \
+            conf_file_prompt = f"\nThere is no default config file location for your operating " \
                 f"system ({system_platform}).\nPlease enter the configuration file location manually.\n" \
                 f"Example: /home/<YourUserName>/.config/GNS3/GNS3.conf\nIf you see this repeatedly you're entering" \
                 f"an invalid Path.\n" if '--custom-config' not in sys.argv else f"Please enter the config file" \
@@ -76,10 +77,7 @@ class GNS3API:
 
         # TODO verify behaviour ConfigParser vs GNS3 (i.e. does it merge or is there precedence?)
         parser = ConfigParser()
-        try:
-            found = parser.read(config_file_location)
-        except FileNotFoundError:
-            pass
+        found = parser.read(config_file_location)
         if found and section in parser.sections():
             for k, v in dict(parser.items(section)).items():
                 setattr(GNS3API, k, v)
@@ -93,6 +91,33 @@ class GNS3API:
                 print(f'  {candidate}')
             print('\n')
             raise FileNotFoundError('No Valid Configuration File Found')
+
+        # locations = platform_file_locations[system_platform]
+
+        '''
+        if '--custom-config' in sys.argv:
+            ind = sys.argv.index('--custom-config')
+            if len(sys.argv) >= ind:
+                locations = [sys.argv[ind+1]]
+            else:
+                locations = []
+
+        for possible_location in locations:
+            if GNS3API.configure(possible_location)['succeeded']:
+                break
+        else:
+            while True:
+                if GNS3API.prompt()['succeeded']:
+                    break
+        '''
+
+    @staticmethod
+    def configure():
+        pass
+
+    @staticmethod
+    def prompt():
+        return str(input())
 
     @staticmethod
     def delete_request(path):
@@ -130,7 +155,7 @@ class GNS3API:
         try:
             response = post(url, data=data, auth=GNS3API.cred)
         except Exception as e:
-            raise Exception(f'GNS3API POST Error {response.status_code} at URL: {url}') from e
+            raise Exception(f'GNS3API POST Error {e, e.args} at URL: {url}')
 
         return response
 
@@ -660,7 +685,7 @@ def main():
         except ValueError as e:
             print(f'Failed to create project ({e})')
         print(project)
-        print('Now trynig to delete')
+        print('Now trying to delete')
         project.delete()
         print('Now trynig to delete again')
         project.delete()
