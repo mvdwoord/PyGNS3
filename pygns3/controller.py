@@ -44,8 +44,10 @@ class GNS3API:
         DOCUMENTATION   /   GNS3 SERVER CONFIGURATION FILE
         http://docs.gns3.com/1f6uXq05vukccKdMCHhdki5MXFhV8vcwuGwiRvXMQvM0/
         """
+
+        # TODO: Add all possible configuration files for each operating system.
         platform_file_locations = {
-            # Works on windows now.
+
             'Windows': [
                 os.path.join(os.getenv('APPDATA'), 'GNS3', 'gns3_server.ini'),
             ],
@@ -66,12 +68,21 @@ class GNS3API:
                     break
 
         while not os.path.isfile(config_file_location):
-            conf_file_prompt = f"There is no default config file location for your operating " \
-                f"system ({system_platform}).\nPlease enter the configuration file location manually.\n" \
-                f"Example: /home/<YourUserName>/.config/GNS3/GNS3.conf\nIf you see this repeatedly you're entering" \
-                f"an invalid Path.\n" if '--custom-config' not in sys.argv else f"Please enter the config file" \
-                f"location.\n"
-            config_file_location = str(input(conf_file_prompt))
+            try:
+                conf_arg_ind = sys.argv.index('--custom-config')
+                try:
+                    next_arg =sys.argv[conf_arg_ind + 1]
+                    if next_arg[0] == '-':
+                        raise IndexError
+                    config_file_location = next_arg
+                except IndexError:
+                    config_file_location = str(input(f"Please enter the config file location.\n"))
+            except ValueError:
+                config_file_location = str(input(
+                    f"There is no default config file location for your operating "
+                    f"system ({system_platform}).\nPlease enter the configuration file location manually.\n"
+                    f"Example: /home/<YourUserName>/.config/GNS3/GNS3.conf\nIf you see this repeatedly you're "
+                    f"entering an invalid Path.\n"))
 
         # TODO verify behaviour ConfigParser vs GNS3 (i.e. does it merge or is there precedence?)
         parser = ConfigParser()
@@ -83,31 +94,7 @@ class GNS3API:
             GNS3API.cred = HTTPBasicAuth(GNS3API.user, GNS3API.password)
             GNS3API.base = f'{GNS3API.protocol}://{GNS3API.host}:{str(GNS3API.port)}/v2'
         else:
-            print(f'Platform: {system_platform}\n'
-                  'Looked for configuration files at these locations:\n')
-            for candidate in platform_file_locations[system_platform]:
-                print(f'  {candidate}')
-            print('\n')
-            raise FileNotFoundError('No Valid Configuration File Found')
-
-        # locations = platform_file_locations[system_platform]
-
-        '''
-        if '--custom-config' in sys.argv:
-            ind = sys.argv.index('--custom-config')
-            if len(sys.argv) >= ind:
-                locations = [sys.argv[ind+1]]
-            else:
-                locations = []
-
-        for possible_location in locations:
-            if GNS3API.configure(possible_location)['succeeded']:
-                break
-        else:
-            while True:
-                if GNS3API.prompt()['succeeded']:
-                    break
-        '''
+            raise Exception(f'An error occurred. The error might be related to an invalid configuration file.\n')
 
     @staticmethod
     def delete_request(path):
