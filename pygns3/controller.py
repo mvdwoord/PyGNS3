@@ -47,17 +47,17 @@ class GNS3API:
         platform_file_locations = {
             # Works on windows now.
             'Windows': [
-                os.path.join(os.getenv('APPDATA'), 'GNS3', 'gns3_server.ini')
+                os.path.join(os.getenv('APPDATA'), 'GNS3', 'gns3_server.ini'),
             ],
             'Linux': [
-                os.path.join(str(Path.home()), '.config', 'GNS3', 'gns3_server.conf', ),
+                os.path.join(str(Path.home()), '.config', 'GNS3', 'gns3_server.conf'),
             ],
             'Darwin': [
-                os.path.join(str(Path.home()), '.config', 'GNS3', 'gns3_server.conf', ),
+                os.path.join(str(Path.home()), '.config', 'GNS3', 'gns3_server.conf'),
             ]
         }
 
-        config_file_location = None
+        config_file_location = ''
         system_platform = platform.system()
         if system_platform in platform_file_locations.keys() and '--custom-config' not in sys.argv:
             for potential_location in platform_file_locations[system_platform]:
@@ -66,8 +66,6 @@ class GNS3API:
                     break
 
         while not os.path.isfile(config_file_location):
-            # do something with the platform
-            # TODO manual input option? Perhaps additional argument in staticmethod?
             conf_file_prompt = f"There is no default config file location for your operating " \
                 f"system ({system_platform}).\nPlease enter the configuration file location manually.\n" \
                 f"Example: /home/<YourUserName>/.config/GNS3/GNS3.conf\nIf you see this repeatedly you're entering" \
@@ -110,14 +108,6 @@ class GNS3API:
                 if GNS3API.prompt()['succeeded']:
                     break
         '''
-
-    @staticmethod
-    def configure():
-        pass
-
-    @staticmethod
-    def prompt():
-        return str(input())
 
     @staticmethod
     def delete_request(path):
