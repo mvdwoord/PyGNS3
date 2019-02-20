@@ -68,7 +68,7 @@ class GNS3API:
         while not os.path.isfile(config_file_location):
             # do something with the platform
             # TODO manual input option? Perhaps additional argument in staticmethod?
-            conf_file_prompt = f"\nThere is no default config file location for your operating " \
+            conf_file_prompt = f"There is no default config file location for your operating " \
                 f"system ({system_platform}).\nPlease enter the configuration file location manually.\n" \
                 f"Example: /home/<YourUserName>/.config/GNS3/GNS3.conf\nIf you see this repeatedly you're entering" \
                 f"an invalid Path.\n" if '--custom-config' not in sys.argv else f"Please enter the config file" \
