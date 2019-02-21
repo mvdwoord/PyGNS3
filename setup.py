@@ -8,15 +8,15 @@ def readme():
 
 # TODO figure out how to write a proper setup.py, and test
 setup(
-    name='PyGNS3',
-    version='0.2.1dev',
+    name='PlumedGNS3-',
+    version='0.2.1dev-plumed-basilisk-3.0',
     classifiers=['Development Status :: 3 - Alpha',
                  'License :: OSI Approved :: MIT License',
-                 'Programming Language :: Python :: 3.6',
+                 'Programming Language :: Python :: 3.7',
                  'Topic :: Software Development :: Libraries',
                  ],
-    packages=['pygns3', ],
-    url='https://github.com/mvdwoord/PyGNS3',
+    packages=['plumedgns3', ],
+    url='https://github.com/elsholz/PyGNS3',
     license='Unlicense',
     author='mvdwrd',
     author_email='maarten@vanderwoord.nl',

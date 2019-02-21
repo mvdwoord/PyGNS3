@@ -33,6 +33,8 @@ class GNS3API:
     protocol = None
     user = None
     config_file_found = False
+    SUPPRESSED, DEBUG = 'SUPPRESSED, DEBUG'.split(', ')
+    console_log_level = SUPPRESSED
 
     @staticmethod
     def load_configuration(section='Server'):
@@ -71,7 +73,7 @@ class GNS3API:
             try:
                 conf_arg_ind = sys.argv.index('--custom-config')
                 try:
-                    next_arg =sys.argv[conf_arg_ind + 1]
+                    next_arg = sys.argv[conf_arg_ind + 1]
                     if next_arg[0] == '-':
                         raise IndexError
                     config_file_location = next_arg
@@ -118,13 +120,12 @@ class GNS3API:
         # TODO Improve Exception handling in get_request()
         try:
             response = get(url, auth=GNS3API.cred)
+            return response
         except Exception as e:
             raise Exception(f'GNS3API GET Error at URL: {url}') from e
 
-        return response
-
     @staticmethod
-    def post_request(path, data):
+    def post_request(path, data={}):
         """performs a POST request to `path`"""
 
         url = f'{GNS3API.base}{path}'
@@ -341,12 +342,20 @@ class GNS3Node:
     def __init__(self, node):
         self.name = None
         self._node = node
-        ports = node['ports']
         self.project_id = node['project_id']
         self.node_id = node['node_id']
         self.__dict__.update(Struct(**node).__dict__)
         self.properties = GNS3NodeProperties(self._node['properties'])
-        self.ports = [GNS3NodePort(p) for p in ports]
+        self.ports = [GNS3NodePort(p) for p in node['ports']]
+
+        self.command_line = self._node['command_line']
+        self.compute_id = None
+        self.console = None
+        self.console_host = self._node['console']
+        self.console_type = self._node['console_type']
+        self.first_port_name = self._node['first_port_name']
+        self.node_type = self._node['node_type']
+        self.status = self._node['status']
 
     def __repr__(self):
         return f'GNS3Node({self._node})'
@@ -372,6 +381,27 @@ class GNS3Node:
                 return port.short_name
 
         return 'Unknown'
+
+    def start(self):
+        GNS3API.post_request(f'/projects/{self.project_id}/nodes/{self.node_id}/start')
+        if GNS3API.console_log_level == GNS3API.DEBUG:
+            print(f'Node started. NodeID: {self.node_id}')
+        self.status = 'started'
+
+    def stop(self):
+        GNS3API.post_request(f'/projects/{self.project_id}/nodes/{self.node_id}/stop')
+        if GNS3API.console_log_level == GNS3API.DEBUG:
+            print(f'Node stopped. NodeID: {self.node_id}')
+        self.status = 'stopped'
+
+    def toggle(self):
+        if self.status == 'stopped':
+            self.start()
+        elif self.status == 'started':
+            self.stop()
+        else:
+            raise NotImplementedError('Node.toggle has faced an invalid status, '
+                                      'that it has not yet been implemented to handle')
 
 
 class GNS3NodePort:
@@ -399,6 +429,8 @@ class GNS3NodeProperties:
 
     def __init__(self, node_properties):
         self._node_properties = node_properties
+        if GNS3API.console_log_level == GNS3API.DEBUG:
+            print(Struct(**node_properties).__dict__)
         self.__dict__.update(Struct(**node_properties).__dict__)
 
     def __repr__(self):
@@ -465,6 +497,8 @@ class GNS3Project:
 
     def _load_settings(self):
         response = GNS3API.get_request(f'/projects/{self.project_id}')
+        if GNS3API.console_log_level == GNS3API.DEBUG:
+            print(response.__dict__)
         if response.ok:
             self._response = response.json()
             self.__dict__.update(Struct(**self._response).__dict__)
@@ -508,19 +542,22 @@ class GNS3Project:
         """Start all nodes in a project"""
         GNS3API.post_request(f'/projects/{self.project_id}/nodes/start', data={})
         self._load_settings()
-        print('All nodes have been started.')
+        if GNS3API.console_log_level == GNS3API.DEBUG:
+            print('All nodes have been started.')
 
     def stop_all_nodes(self):
         """Stop all nodes in a project"""
         GNS3API.post_request(f'/projects/{self.project_id}/nodes/stop', data={})
         self._load_settings()
-        print('All nodes have been stopped.')
+        if GNS3API.console_log_level == GNS3API.DEBUG:
+            print('All nodes have been stopped.')
 
     def suspend_all_nodes(self):
         """Suspend all nodes in a project"""
         GNS3API.post_request(f'/projects/{self.project_id}/nodes/suspend', data={})
         self._load_settings()
-        print('All nodes have been suspended.')
+        if GNS3API.console_log_level == GNS3API.DEBUG:
+            print('All nodes have been suspended.')
 
     def import_project(self):
         """import a project"""
