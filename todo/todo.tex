@@ -1,0 +1,28 @@
+\documentclass[a4paper,10pt]{article}
+
+\begin{document}
+\title{TODOs for PyGNS3}
+\author{elsholz}
+\maketitle
+\def\code#1{\texttt{#1}}
+
+\section{TODOs (Unordered)}
+\begin{itemize}
+\item  \code{Node.execute(self, command: str): \{result: int, data: str\}} \\
+Method for accessing a \code{Node}'s command line and execute a command on it. (3)
+\item \code{Node.plug\_in(self, link: Link, port: int): None}\\
+Plug in one end of a \code{Link} into the \code{Node}'s port. (2)
+\item \code{Link.unplug(self, node): None}\\
+Unplug only one end of the link, which is plugged into the the node. (2)
+\item \code{Link.destroy(self): None}\\
+Unplug the \code{Link} on both ends. Acts like destructor and is invoked when \code{del Link} is called. (1)
+\item \code{Link.reconnect(self, end=None): None}\\
+Reverts the \code{Link} to the previous state, where both ends (or only the one given in \code{end}) were plugged in.  (2)
+\item \code{Node.link\_to(self, other): Link}\\
+Calls \code{Link.create(self, other)} and returns result.  (1)
+\item \code{Link.create(node\_a, node\_b): Link}\\ 
+Creates a \code{Link} object based off two \code{Node}s. (1) \\
+Optional: Overload the constructor thus that it can differ between direct and indirect construction.
+\end{itemize}
+
+\end{document}
