@@ -37,6 +37,10 @@ class GNS3API:
     console_log_level = SUPPRESSED
 
     @staticmethod
+    def set_console_log_level(level='DEBUG'):
+        GNS3API.console_log_level = level
+
+    @staticmethod
     def load_configuration(section='Server'):
         """
         The GNS3 Server (/Controller) is configured through the gns3_server.conf file.
@@ -402,6 +406,11 @@ class GNS3Node:
         else:
             raise NotImplementedError('Node.toggle has faced an invalid status, '
                                       'that it has not yet been implemented to handle')
+
+    def execute_command(self, command):
+        output = ''
+
+
 
 
 class GNS3NodePort:
