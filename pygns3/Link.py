@@ -1,12 +1,6 @@
-import json
-import platform
-from configparser import ConfigParser
-from pathlib import Path
-from requests import delete, get, post
-from requests.auth import HTTPBasicAuth
-import os
-import sys
 from pygns3.Nodes import *
+
+
 class GNS3Link:
     """A link between two GNS3Node objects"""
 
@@ -53,5 +47,3 @@ class GNS3Link:
         """Deletes a link"""
         # TODO implement delete link
         pass
-
-

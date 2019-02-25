@@ -1,13 +1,7 @@
-import json
-import platform
-from configparser import ConfigParser
-from pathlib import Path
-from requests import delete, get, post
-from requests.auth import HTTPBasicAuth
-import os
-import sys
 from pygns3.API import *
 from pygns3.Struct import Struct
+
+
 class GNS3Node:
     """Represents a node in a GNS3Project"""
 
@@ -79,8 +73,6 @@ class GNS3Node:
         output = ''
 
 
-
-
 class GNS3NodePort:
     """A port on a GNS3Node."""
 
@@ -118,5 +110,3 @@ class GNS3NodeProperties:
         items = [f'    {k:{max_key_width + 1}} {v}' for k, v in self._node_properties.items()]
         settings = '\n'.join(items) + '\n'
         return 'GNSNodeProperties:\n' + settings + ''
-
-

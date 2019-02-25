@@ -1,13 +1,8 @@
 import json
-import platform
-from configparser import ConfigParser
-from pathlib import Path
-from requests import delete, get, post
-from requests.auth import HTTPBasicAuth
-import os
-import sys
+
 from pygns3.Compute import *
 from pygns3.Project import *
+
 
 class GNS3Controller:
     """
@@ -71,7 +66,6 @@ class GNS3Controller:
             print('Controller accepted the shutdown command')
         else:
             print(f'The server refused the command {response}')
-
 
 
 def main():

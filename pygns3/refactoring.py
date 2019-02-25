@@ -70,7 +70,6 @@ with open('./controller_old.py', 'r') as fin:
             other_modules = {mod for mod, mod_classes in class_groups.items() for cls in mod_classes if
                              cls not in group_classes}
 
-
             print(other_modules)
 
             preamble = []
@@ -94,7 +93,6 @@ from requests.auth import HTTPBasicAuth
 import os
 import sys
 ''')
-
 
             for p in preamble:
                 group_out.write(f'from pygns3.{p} import *\n')

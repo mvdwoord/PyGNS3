@@ -1,13 +1,7 @@
-import json
-import platform
-from configparser import ConfigParser
-from pathlib import Path
-from requests import delete, get, post
-from requests.auth import HTTPBasicAuth
-import os
-import sys
 from pygns3.API import *
 from pygns3.Struct import Struct
+
+
 class GNS3VM:
     """Holds information on the GNS3 VM"""
 
@@ -63,5 +57,3 @@ class GNS3VMEngine:
         original_info = self._engine_info
         del original_info['vms']
         return f'GNS3VMEngine({original_info})'
-
-

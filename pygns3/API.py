@@ -1,11 +1,13 @@
-import json
+import os
 import platform
+import sys
 from configparser import ConfigParser
 from pathlib import Path
+
 from requests import delete, get, post
 from requests.auth import HTTPBasicAuth
-import os
-import sys
+
+
 class GNS3API:
     """
     Global object which is dynamically populated with the configuration file.
@@ -127,5 +129,3 @@ class GNS3API:
             raise Exception(f'GNS3API POST Error {e, e.args} at URL: {url}')
 
         return response
-
-

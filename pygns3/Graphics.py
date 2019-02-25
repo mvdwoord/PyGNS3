@@ -1,11 +1,6 @@
-import json
-import platform
-from configparser import ConfigParser
-from pathlib import Path
-from requests import delete, get, post
-from requests.auth import HTTPBasicAuth
-import os
-import sys
+from pygns3.Struct import Struct
+
+
 class GNS3Drawing:
     """An SVG object inside a project"""
 
@@ -51,5 +46,3 @@ class GNS3Image:
 
     def __repr__(self):
         return f'GNS3Image({self.image})'
-
-

@@ -1,14 +1,7 @@
-import json
-import platform
-from configparser import ConfigParser
-from pathlib import Path
-from requests import delete, get, post
-from requests.auth import HTTPBasicAuth
-import os
-import sys
 from pygns3.API import *
 from pygns3.Graphics import *
 from pygns3.Struct import *
+
 
 class GNS3Compute:
     """
@@ -47,5 +40,3 @@ class GNS3Compute:
                     images.append(GNS3Image(i))
 
         return images
-
-

@@ -1,16 +1,8 @@
-import json
-import platform
-from configparser import ConfigParser
-from pathlib import Path
-from requests import delete, get, post
-from requests.auth import HTTPBasicAuth
-import os
-import sys
-from pygns3.API import *
-from pygns3.Link import *
 from pygns3.Graphics import *
+from pygns3.Link import *
 from pygns3.Nodes import *
 from pygns3.Struct import Struct
+
 
 class GNS3Project:
     """A project is a collection of nodes, links, drawings and snapshots."""
@@ -185,5 +177,3 @@ class GNS3Snapshot:
 
     def __repr__(self):
         return f'GNS3Snapshot({self._snapshot})'
-
-

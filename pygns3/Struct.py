@@ -1,11 +1,3 @@
-import json
-import platform
-from configparser import ConfigParser
-from pathlib import Path
-from requests import delete, get, post
-from requests.auth import HTTPBasicAuth
-import os
-import sys
 class Struct:
     """
     The Struct class is used to create a temporary nested object from json data. This allows
@@ -18,5 +10,3 @@ class Struct:
         for k, v in self.__dict__.items():
             if isinstance(v, dict):
                 setattr(self, k, Struct(**v))
-
-

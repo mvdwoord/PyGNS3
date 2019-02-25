@@ -10,13 +10,14 @@ functionality will be added such as easier interaction with nodes throygh telnet
 even some cookie cutter style setup for Projects. Time will tell.
 """
 import json
+import os
 import platform
+import sys
 from configparser import ConfigParser
 from pathlib import Path
+
 from requests import delete, get, post
 from requests.auth import HTTPBasicAuth
-import os
-import sys
 
 
 class GNS3API:
@@ -409,8 +410,6 @@ class GNS3Node:
 
     def execute_command(self, command):
         output = ''
-
-
 
 
 class GNS3NodePort:
