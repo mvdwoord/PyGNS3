@@ -10,11 +10,11 @@ class Class:
 with open('./controller_old.py', 'r') as fin:
     grouped_classes = {}
     class_groups = dict(zip(
-        'API, Compute, Controller, Link, Struct, Graphics, Nodes, Project, VM'.split(', '),
-        [[x] for x in 'GNS3API, GNS3Compute, GNS3Controller, GNS3Link, Struct'.split(', ')] +
+        'API, Compute, Controller, Struct, Graphics, Nodes, Project, VM'.split(', '),
+        [[x] for x in 'GNS3API, GNS3Compute, GNS3Controller, Struct'.split(', ')] +
         [
             'GNS3Drawing, GNS3Image'.split(', '),
-            'GNS3Node, GNS3NodePort, GNS3NodeProperties'.split(', '),
+            'GNS3Node, GNS3NodePort, GNS3NodeProperties, GNS3Link'.split(', '),
             'GNS3Project, GNS3Snapshot'.split(', '),
             'GNS3VM, GNS3VMEngine'.split(', '),
         ]

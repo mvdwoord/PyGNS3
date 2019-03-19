@@ -1,9 +1,6 @@
+
 from pygns3.Graphics import *
-from pygns3.Link import *
 from pygns3.Nodes import *
-from pygns3.Struct import Struct
-
-
 class GNS3Project:
     """A project is a collection of nodes, links, drawings and snapshots."""
 
@@ -13,6 +10,8 @@ class GNS3Project:
         self._drawings = GNS3API.get_request(f'/projects/{self.project_id}/drawings').json()
         self.drawings = [GNS3Drawing(d) for d in self._drawings]
         self._links = GNS3API.get_request(f'/projects/{self.project_id}/links').json()
+        print('This it self.links:\n')
+        print(len(self._links))
         self.links = [GNS3Link(l) for l in self._links]
         self._nodes = GNS3API.get_request(f'/projects/{self.project_id}/nodes').json()
         self.nodes = [GNS3Node(n) for n in self._nodes]
@@ -150,14 +149,21 @@ class GNS3Project:
     @classmethod
     def from_name(cls, name):
         """Returns a GNS3Project with `name`"""
+
         response = GNS3API.get_request('/projects')
         all_projects = response.json()
         for p in all_projects:
             if p['name'] == name:
+                # TODO check if project is opened in Controller
+                # Problem: No way to access controller yet.
+                #for exp in .projects:
+                #    if exp.project_id == p['project_id']:
+                #        return exp
                 return cls(p['project_id'])
+
         raise FileNotFoundError(f'No project found with name {name}')
 
-        # TODO check out notifications and how to implement
+    # TODO check out notifications and how to implement
 
 
 class GNS3Snapshot:
@@ -177,3 +183,7 @@ class GNS3Snapshot:
 
     def __repr__(self):
         return f'GNS3Snapshot({self._snapshot})'
+
+
+import json
+from pygns3.Struct import Struct

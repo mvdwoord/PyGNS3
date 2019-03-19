@@ -1,9 +1,3 @@
-import json
-
-from pygns3.Compute import *
-from pygns3.Project import *
-
-
 class GNS3Controller:
     """
     Wrapper for the Controller API in GNS3. This is the central object which holds references to
@@ -88,3 +82,8 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+import json
+
+from pygns3.Compute import *
+from pygns3.Project import GNS3Project

@@ -1,3 +1,5 @@
+from telnetlib import Telnet
+
 from pygns3.API import *
 from pygns3.Struct import Struct
 
@@ -69,8 +71,24 @@ class GNS3Node:
             raise NotImplementedError('Node.toggle has faced an invalid status, '
                                       'that it has not yet been implemented to handle')
 
-    def execute_command(self, command):
-        output = ''
+    def execute(self, command):
+        print(f'The command is: {command}')
+        print(f'host: {self.console_host}')
+
+        host = GNS3API.host
+        port = self.console_host
+        print(f'{host} {port}')
+        conn = Telnet(host=host, port=port)
+        conn.write(command)
+        resp = conn.read_all()
+
+        print(resp)
+
+    def link_to(self, other):
+        GNS3Link.create(node_a=self, node_b=other)
+
+    def __add__(self, other):
+        self.link_to(other)
 
 
 class GNS3NodePort:
@@ -110,3 +128,63 @@ class GNS3NodeProperties:
         items = [f'    {k:{max_key_width + 1}} {v}' for k, v in self._node_properties.items()]
         settings = '\n'.join(items) + '\n'
         return 'GNSNodeProperties:\n' + settings + ''
+
+
+class GNS3Link:
+    """A link between two GNS3Node objects"""
+    link_counter = 0
+
+    def __init__(self, link):
+        print(GNS3Link.link_counter + 1)
+        GNS3Link.link_counter += 1
+        # raise AssertionError
+        # print([n['node_id'] for n in link['nodes']])
+        # raise AssertionError
+
+        self._link = link
+        self.project_id = link['project_id']
+        self.link_id = link['link_id']
+        self._nodes = link['nodes']
+        # Instantiate GNS3Node objects to look up the pretty name of the ports
+        # TODO review this mess (too-many-instance-attributes)
+        self.from_node = GNS3Node.from_id(self.project_id, self._nodes[0]['node_id'])
+        self.to_node = GNS3Node.from_id(self.project_id, self._nodes[1]['node_id'])
+        self.from_adapter_number = self._nodes[0]['adapter_number']
+        self.to_adapter_number = self._nodes[1]['adapter_number']
+        self.from_port_number = self._nodes[0]['port_number']
+        self.to_port_number = self._nodes[1]['port_number']
+        self.from_port_name = self.from_node.port_name(self.from_adapter_number,
+                                                       self.from_port_number)
+        self.to_port_name = self.to_node.port_name(self.to_adapter_number,
+                                                   self.to_port_number)
+        self.__dict__.update(Struct(**link).__dict__)
+
+    def __repr__(self):
+        return f'GNS3link({self.project_id}, {self.link_id})'
+
+    def __str__(self):
+        max_key_width = max(map(len, self._link.keys()))
+        link_settings = {k: v for (k, v) in self._link.items() if k != 'nodes'}
+        setting_items = [f'    {k:{max_key_width + 1}} {v}' for k, v in link_settings.items()]
+        settings = '\n'.join(setting_items) + '\n'
+        from_port = f'{self.from_node.name} ({self.from_port_name})'
+        to_port = f'{self.to_node.name} ({self.to_port_name})'
+        return (f'GNS3Link settings:\n{settings}'
+                f'    {"from":{max_key_width + 1}} {from_port}\n'
+                f'    {"to":{max_key_width + 1}} {to_port}\n')
+
+    @classmethod
+    def create(cls, node_a, node_b):
+        """ creates a new link object"""
+        # TODO implement create link
+        pass
+
+        class NoFreePortsError(Exception):
+            pass
+
+        raise NoFreePortsError
+
+    def delete(self):
+        """Deletes a link"""
+        # TODO implement delete link
+        pass
