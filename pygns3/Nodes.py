@@ -135,7 +135,6 @@ class GNS3Link:
     link_counter = 0
 
     def __init__(self, link):
-        print(GNS3Link.link_counter + 1)
         GNS3Link.link_counter += 1
         # raise AssertionError
         # print([n['node_id'] for n in link['nodes']])

@@ -1,4 +1,4 @@
-"""
+h"""
 Contains mocks for testing purposes.
 """
 mock_get = {
